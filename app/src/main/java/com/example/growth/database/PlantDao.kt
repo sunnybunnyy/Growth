@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.example.growth.model.Plant
 import com.example.growth.model.PlantPhoto
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlantDao {
@@ -15,7 +16,7 @@ interface PlantDao {
     suspend fun insertPlantPhoto(photo: PlantPhoto)
 
     @Query("SELECT * FROM Plant")
-    suspend fun getAllPlants(): List<Plant>
+    suspend fun getAllPlants(): Flow<List<Plant>>
 
     @Query("SELECT * FROM PlantPhoto WHERE plantId = :plantId ORDER BY dateTaken ASC")
     suspend fun getPhotosForPlant(plantId: Int): List<PlantPhoto>
