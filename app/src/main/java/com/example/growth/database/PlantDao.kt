@@ -3,6 +3,7 @@ package com.example.growth.database
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import com.example.growth.model.Plant
 import com.example.growth.model.PlantPhoto
 
 @Dao
