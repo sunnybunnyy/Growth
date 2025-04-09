@@ -52,8 +52,8 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             GrowthTheme {
-                val navController = rememberNavController()
-                val permissions = remember { mutableStateOf(false) }
+                val navController = rememberNavController() // Controls screen navigation
+                val permissions = remember { mutableStateOf(false) } // Tracks if we have permissions
 
                 // Check permissions
                 LaunchedEffect(Unit) {
