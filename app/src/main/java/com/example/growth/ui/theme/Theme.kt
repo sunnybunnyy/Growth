@@ -11,16 +11,55 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val LightColorScheme = lightColorScheme(
+    // Primary colors (greens)
+    primary = Green40,
+    onPrimary = GrowthOnPrimary,
+    primaryContainer = Green90,
+    onPrimaryContainer = Green10,
+
+    // Secondary colors (earthy browns)
+    secondary = Brown40,
+    onSecondary = GrowthOnSecondary,
+    secondaryContainer = Brown90,
+    onSecondaryContainer = Brown10,
+
+    // Tertiary colors (water blue)
+    tertiary = WaterBlue,
+
+    // Background/surface colors
+    background = Neutral99,
+    onBackground = Neutral10,
+    surface = Neutral95,
+    onSurface = Neutral10,
+
+    // Error colors
+    error = Error30,
+    onError = GrowthOnError,
+    errorContainer = Error90,
+    onErrorContainer = Error10,
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+private val DarkColorScheme = darkColorScheme(
+    primary = DarkGreen30,
+    onPrimary = GrowthOnPrimary,
+    primaryContainer = DarkGreen80,
+    onPrimaryContainer = DarkGreen10,
+
+    secondary = DarkBrown30,
+    onSecondary = GrowthOnSecondary,
+    secondaryContainer = DarkBrown80,
+    onSecondaryContainer = DarkBrown10,
+
+    background = DarkNeutral99,
+    onBackground = DarkNeutral10,
+    surface = DarkNeutral95,
+    onSurface = DarkNeutral10,
+
+    error = Error80,
+    onError = GrowthOnError,
+    errorContainer = Error30,
+    onErrorContainer = Error90,
 
     /* Other default colors to override
     background = Color(0xFFFFFBFE),
