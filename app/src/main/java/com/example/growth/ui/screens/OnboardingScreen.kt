@@ -1,15 +1,18 @@
 package com.example.growth.ui.screens
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.growth.R
@@ -25,11 +28,33 @@ data class OnboardingPage(
 // Onboarding page content composable
 @Composable
 fun OnboardingPageContent(page: OnboardingPage) {
-    Column {
-        // TODO: Implement page content here
-        // Image(painter = painterResource(id = page.image), contentDescription = null)
-        Text(text = page.title)
-        Text(text = page.description)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = page.image),
+            contentDescription = null,
+            modifier = Modifier
+                .size(220.dp)
+                .padding(bottom = 24.dp)
+        )
+
+        Text(
+            text = page.title,
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        Text(
+            text = page.description,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -57,7 +82,10 @@ fun OnboardingScreen(navController: NavController) {
 
     val pagerState = rememberPagerState { pages.size }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f)
@@ -76,7 +104,9 @@ fun OnboardingScreen(navController: NavController) {
                     navController.navigate("home")
                 }
             },
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .padding(bottom = 32.dp, top = 16.dp)
+                .width(200.dp)
         ) {
             Text(if (pagerState.currentPage == pages.size - 1) "Get Started" else "Next")
         }
