@@ -40,6 +40,11 @@ android {
 }
 
 dependencies {
+    implementation (libs.androidx.media3.exoplayer)
+    implementation (libs.androidx.media3.ui)
+    implementation (libs.androidx.lifecycle.runtime.compose.v262)
+    implementation (libs.androidx.lifecycle.runtime.ktx.v262)
+
     // CameraX core library
     implementation (libs.androidx.camera.core)
     implementation (libs.androidx.camera.camera2)

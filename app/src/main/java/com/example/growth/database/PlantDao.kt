@@ -19,7 +19,7 @@ interface PlantDao {
     suspend fun getAllPlants(): Flow<List<Plant>>
 
     @Query("SELECT * FROM PlantPhoto WHERE plantId = :plantId ORDER BY dateTaken ASC")
-    suspend fun getPhotosForPlant(plantId: Int): List<PlantPhoto>
+    fun getPhotosForPlant(plantId: Int): Flow<List<PlantPhoto>>
 
     // Add other queries
 }
