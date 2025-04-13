@@ -3,6 +3,8 @@ package com.example.growth.utils
 import android.content.Context
 import com.example.growth.model.PlantPhoto
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object TimeLapseHelper {
     suspend fun createTimeLapse(
