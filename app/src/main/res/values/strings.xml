@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Growth</string>
+    <string name="permission_required_title">Permissions Required</string>
+    <string name="permission_required_message">Growth needs camera and storage permissions to function properly. Please enable them in app settings.</string>
+    <string name="settings">Settings</string>
+    <string name="cancel">Cancel</string>
 </resources>
