@@ -60,7 +60,10 @@ fun OnboardingPageContent(page: OnboardingPage) {
 
 // Main onboarding screen
 @Composable
-fun OnboardingScreen(navController: NavController) {
+fun OnboardingScreen(
+    navController: NavController,
+    onGetStarted: () -> Unit = { navController.navigate("home") }
+) {
     val coroutineScope = rememberCoroutineScope()
     val pages = listOf(
         OnboardingPage(
@@ -101,7 +104,7 @@ fun OnboardingScreen(navController: NavController) {
                     }
                 } else {
                     // Request permissions and navigate to home
-                    navController.navigate("home")
+                    onGetStarted()
                 }
             },
             modifier = Modifier
