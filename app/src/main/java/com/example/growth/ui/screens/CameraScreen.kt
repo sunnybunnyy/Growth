@@ -1,6 +1,7 @@
 package com.example.growth.ui.screens
 
 import android.content.Context
+import android.graphics.Paint.Align
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -42,14 +43,32 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.Text
+import androidx.compose.material3.Button
 
 @Composable
 fun CameraScreen(
     plantId: Int,
     onPhotoTaken: (String) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    hasCameraPermission: Boolean
 ) {
     val context = LocalContext.current
+
+    if (!hasCameraPermission) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Camera permission required")
+            Button(onClick = onCancel) {
+                Text("Go Back")
+            }
+        }
+        return
+    }
+
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var flashOn by remember { mutableStateOf(false) }
 

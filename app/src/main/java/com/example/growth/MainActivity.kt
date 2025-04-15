@@ -42,6 +42,7 @@ import com.example.growth.ui.screens.AddPlantScreen
 import com.example.growth.ui.screens.CameraScreen
 import com.example.growth.ui.screens.HomeScreen
 import com.example.growth.ui.screens.OnboardingScreen
+import com.example.growth.ui.screens.PlantDetailsScreen
 import com.example.growth.ui.screens.TimeLapseScreen
 import com.example.growth.ui.theme.GrowthTheme
 
@@ -53,20 +54,17 @@ class MainActivity : ComponentActivity() {
     )
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<Array<String>>
+    private var showPermissionDeniedDialog by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // Initialize the state variable
-        var showPermissionDeniedDialog by mutableStateOf(false)
 
         requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { permissions ->
             val allGranted = permissions.all { it.value }
             val shouldShowRationale = requiredPermissions.any { permission ->
-                ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.shouldShowRequestPermissionRationale(this, permission)
             }
 
@@ -79,22 +77,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             GrowthTheme {
                 val navController = rememberNavController() // Controls screen navigation
-                var hasPermissions by remember { mutableStateOf(checkAllPermissions()) } // Tracks if we have permissions
+                val hasPermissions = remember { mutableStateOf(checkAllPermissions()) } // Tracks if we have permissions
                 val context = LocalContext.current
-
-                // Database initialization
-                val database = remember {
-                    try {
-                        AppDatabase.getDatabase(context)
-                    } catch (e: Exception) {
-                        // Temporary null to avoid crashing, remove this after fixing
-                        null
-                    }
-                }
 
                 // Permission handling
                 LaunchedEffect(Unit) {
-                    if (!hasPermissions) {
+                    if (!hasPermissions.value) {
                         requestPermissionLauncher.launch(requiredPermissions)
                     }
                 }
@@ -124,14 +112,30 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+
+                // Database initialization
+
+                val database = remember {
+                    try {
+                        AppDatabase.getDatabase(context)
+                    } catch (e: Exception) {
+                        // Temporary null to avoid crashing, remove this after fixing
+                        null
+                    }
+                }
+
+
+
+
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AppNavHost(
                         navController = navController,
-                        hasPermissions = hasPermissions,
-                        database = database
+                        hasPermissions = hasPermissions.value,
+                        database = database!!
                     )
                 }
             }
@@ -149,7 +153,7 @@ class MainActivity : ComponentActivity() {
 private fun AppNavHost(
     navController: NavHostController,
     hasPermissions: Boolean,
-    database: AppDatabase?
+    database: AppDatabase
 ) {
     NavHost(
         navController = navController,
@@ -168,11 +172,24 @@ private fun AppNavHost(
             AddPlantScreen(navController = navController)
         }
 
+        composable("plantDetails/{plantId}") { backStackEntry ->
+            PlantDetailsScreen(
+                plantId = backStackEntry.arguments?.getString("plantId")?.toIntOrNull() ?: 0,
+                navController = navController,
+                database = database,
+                hasCameraPermission = hasPermissions
+            )
+        }
+
         composable("camera/{plantId}") { backStackEntry ->
             CameraScreen(
                 plantId = backStackEntry.arguments?.getString("plantId")?.toIntOrNull() ?: 0,
-                onPhotoTaken = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() }
+                onPhotoTaken = { photoPath ->
+                    // Handle the taken photo
+                    navController.popBackStack()
+                },
+                onCancel = { navController.popBackStack() },
+                hasCameraPermission = hasPermissions
             )
         }
         composable("timeLapse/{plantId}") { backStackEntry ->

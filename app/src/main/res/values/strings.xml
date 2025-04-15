@@ -4,4 +4,19 @@
     <string name="permission_required_message">Growth needs camera and storage permissions to function properly. Please enable them in app settings.</string>
     <string name="settings">Settings</string>
     <string name="cancel">Cancel</string>
+    <string name="plant_details">Plant Details</string>
+    <string name="back">Back</string>
+    <string name="edit">Edit</string>
+    <string name="add_photo">Add Photo</string>
+    <string name="days_growing">Days Growing</string>
+    <string name="photos">Photos</string>
+    <string name="view_time_lapse">View Time-Lapse</string>
+    <string name="growth_timeline">Growth Timeline</string>
+    <string name="no_photos_yet">No photos yet. Add your first photo!</string>
+    <string name="plant_not_found">Plant not found</string>
+    <string name="edit_plant">Edit Plant</string>
+    <string name="plant_name">Plant Name</string>
+    <string name="species_optional">Species (Optional)</string>
+    <string name="plant_image">Plant image</string>
+    <string name="save">Save</string>
 </resources>
