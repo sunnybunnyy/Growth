@@ -32,7 +32,9 @@ import androidx.media3.ui.PlayerView
 import com.example.growth.database.AppDatabase
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
+import androidx.core.content.FileProvider
 import java.io.File
+import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,13 +44,38 @@ fun TimeLapseScreen(plantId: Int, onBack: () -> Unit) {
     val photos by database.plantDao().getPhotosForPlant(plantId).collectAsState(initial = emptyList())
     var timeLapseUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(photos) {
         if (photos.size >= 2 && timeLapseUri == null) {
             isLoading = true
-            val outputFile = File(context.cacheDir, "timelapse_$plantId.mp4")
-            if (TimeLapseHelper.createTimeLapse(context, photos, outputFile)) {
-                timeLapseUri = Uri.fromFile(outputFile)
+            errorMessage = null
+
+            val outputFile = File(context.cacheDir, "timelapse_$plantId.mp4").apply {
+                // Delete existing file if any
+                if (exists()) delete()
+            }
+
+            println("Attempting to create timelapse at: ${outputFile.absolutePath}")
+            val success = try {
+                TimeLapseHelper.createTimeLapse(context, photos, outputFile)
+            } catch (e: Exception) {
+                errorMessage = "Failed to create timelapse: ${e.localizedMessage}"
+                false
+            }
+            println("Creation result: $success, file exists: ${outputFile.exists()}, size: ${outputFile.length()} bytes")
+
+            if (success && outputFile.exists() && outputFile.length() > 0) {
+                println("File exists: ${outputFile.exists()}")
+                timeLapseUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outputFile)
+                println("URI set to: $timeLapseUri")
+                // Verify we can actually open the file
+                context.contentResolver.openFileDescriptor(timeLapseUri!!, "r")?.use {
+                    // File is accessible
+                }
+            } else {
+                errorMessage = "Failed to create timelapse. Please try again."
+                println("File creation failed - exists: ${outputFile.exists()}, size: ${outputFile.length()}")
             }
             isLoading = false
         }
@@ -76,6 +103,7 @@ fun TimeLapseScreen(plantId: Int, onBack: () -> Unit) {
                 isLoading -> CircularProgressIndicator()
                 timeLapseUri != null -> VideoPlayer(timeLapseUri!!)
                 photos.size < 2 -> Text("Need at least 2 photos to create a time-lapse")
+                errorMessage != null -> Text(errorMessage!!)
                 else -> Text("Error creating time-lapse")
             }
         }
@@ -87,8 +115,20 @@ fun VideoPlayer(uri: Uri) {
     val context = LocalContext.current
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(uri))
-            prepare()
+            try {
+                // Verify URI is accessible first
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    setMediaItem(MediaItem.fromUri(uri))
+                    prepare()
+                } ?: run {
+                    // File not accessible
+                    throw IOException("Cannot access file at $uri")
+                }
+                setMediaItem(MediaItem.fromUri(uri))
+                prepare()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

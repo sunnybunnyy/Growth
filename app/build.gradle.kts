@@ -46,6 +46,8 @@ android {
 }
 
 dependencies {
+    implementation( libs.ffmpeg.kit.full.v451)
+    implementation(libs.ffmpeg.kit.full)
     implementation( libs.kotlinx.coroutines.android)
     implementation (libs.kotlinx.coroutines.core)
 
