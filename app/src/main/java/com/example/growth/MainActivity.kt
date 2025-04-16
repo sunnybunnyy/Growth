@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -11,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
@@ -25,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,12 +35,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.growth.database.AppDatabase
+import com.example.growth.model.Plant
+import com.example.growth.model.PlantPhoto
 import com.example.growth.ui.screens.AddPlantScreen
 import com.example.growth.ui.screens.CameraScreen
 import com.example.growth.ui.screens.HomeScreen
@@ -45,17 +51,20 @@ import com.example.growth.ui.screens.OnboardingScreen
 import com.example.growth.ui.screens.PlantDetailsScreen
 import com.example.growth.ui.screens.TimeLapseScreen
 import com.example.growth.ui.theme.GrowthTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val requiredPermissions = arrayOf(
         Manifest.permission.CAMERA,
-        Manifest.permission.READ_EXTERNAL_STORAGE,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE
+        Manifest.permission.READ_MEDIA_IMAGES
     )
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<Array<String>>
     private var showPermissionDeniedDialog by mutableStateOf(false)
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -77,8 +86,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             GrowthTheme {
                 val navController = rememberNavController() // Controls screen navigation
-                val hasPermissions = remember { mutableStateOf(checkAllPermissions()) } // Tracks if we have permissions
+                val hasPermissions = remember { mutableStateOf(checkAllPermissions()) }
+
+                // Then use LaunchedEffect separately at the composable level
+                LaunchedEffect(Unit) {
+                    hasPermissions.value = checkAllPermissions()
+                } // Tracks if we have permissions
                 val context = LocalContext.current
+                val scope = rememberCoroutineScope()
 
                 // Permission handling
                 LaunchedEffect(Unit) {
@@ -125,9 +140,6 @@ class MainActivity : ComponentActivity() {
                 }
 
 
-
-
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -135,25 +147,41 @@ class MainActivity : ComponentActivity() {
                     AppNavHost(
                         navController = navController,
                         hasPermissions = hasPermissions.value,
-                        database = database!!
+                        database = database!!,
+                        scope = scope,
+                        requestPermission = {
+                            requestPermissionLauncher.launch(requiredPermissions)
+                        }
                     )
                 }
             }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun checkAllPermissions(): Boolean {
         return requiredPermissions.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
+
+    private fun checkCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+
 }
 
 @Composable
 private fun AppNavHost(
     navController: NavHostController,
     hasPermissions: Boolean,
-    database: AppDatabase
+    database: AppDatabase,
+    scope: CoroutineScope,
+    requestPermission: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -177,19 +205,34 @@ private fun AppNavHost(
                 plantId = backStackEntry.arguments?.getString("plantId")?.toIntOrNull() ?: 0,
                 navController = navController,
                 database = database,
-                hasCameraPermission = hasPermissions
+                hasCameraPermission = hasPermissions,
+                onRequestCameraPermission = { requestPermission() }
             )
         }
 
         composable("camera/{plantId}") { backStackEntry ->
+            val plantIdString = backStackEntry.arguments?.getString("plantId")
+            val plantId = plantIdString?.toIntOrNull() ?: 0
+
             CameraScreen(
-                plantId = backStackEntry.arguments?.getString("plantId")?.toIntOrNull() ?: 0,
+                plantId = plantId,
                 onPhotoTaken = { photoPath ->
-                    // Handle the taken photo
                     navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() },
-                hasCameraPermission = hasPermissions
+                hasCameraPermission = hasPermissions,
+                savePhoto = { pid, path ->
+                    // Save photo to database
+                    scope.launch {
+                        database.plantDao().insertPlantPhoto(
+                            PlantPhoto(
+                                plantId = pid,
+                                photoPath = path,
+                                dateTaken = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
             )
         }
         composable("timeLapse/{plantId}") { backStackEntry ->
@@ -256,7 +299,9 @@ fun MainActivityPreview() {
             AppNavHost(
                 navController = navController,
                 hasPermissions = true,
-                database = AppDatabase.getDatabase(LocalContext.current)
+                database = AppDatabase.getDatabase(LocalContext.current),
+                scope = TODO(),
+                requestPermission = TODO()
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.example.growth.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,7 +68,8 @@ fun PlantDetailsScreen(
     plantId: Int,
     navController: NavController,
     database: AppDatabase,
-    hasCameraPermission: Boolean
+    hasCameraPermission: Boolean,
+    onRequestCameraPermission: () -> Unit
 ) {
     val context = LocalContext.current
     val plantDao = database.plantDao()
@@ -101,17 +103,17 @@ fun PlantDetailsScreen(
         floatingActionButton = {
             Button(
                 onClick = {
+                    Log.d("AddPhoto", "Add photo button clicked for plant ID: $plantId")
                     if (hasCameraPermission) {
-                        navController.navigate("camera/$plantId")
+                        try {
+                            navController.navigate("camera/$plantId")
+                            Log.d("AddPhoto", "Navigating to camera screen with plant ID: $plantId")
+                        } catch (e: Exception) {
+                            Log.e("AddPhoto", "Navigation error: ${e.message}", e)
+                        }
                     } else {
-                        // TODO: Show permission rationale or request permission
-                        // Maybe trigger the permission request here
-                        /*val context = LocalContext.current
-                        if (context is ComponentActivity) {
-                            context.requestPermissionLauncher.launch(
-                                arrayOf(Manifest.permission.CAMERA)
-                            )
-                        }*/
+                        Log.d("AddPhoto", "Camera permission not granted, requesting...")
+                        onRequestCameraPermission()
                     }
                 }
             ) {

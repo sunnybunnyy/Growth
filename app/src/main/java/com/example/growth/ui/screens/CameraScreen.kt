@@ -1,7 +1,12 @@
 package com.example.growth.ui.screens
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Paint.Align
+import android.media.Image
+import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -14,8 +19,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -45,47 +52,74 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 @Composable
 fun CameraScreen(
     plantId: Int,
     onPhotoTaken: (String) -> Unit,
     onCancel: () -> Unit,
-    hasCameraPermission: Boolean
+    hasCameraPermission: Boolean,
+    savePhoto: suspend (Int, String) -> Unit
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    var flashOn by remember { mutableStateOf(false) }
+    var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+    var cameraError by remember { mutableStateOf<String?>(null) }
+
+    val previewView = remember {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+            val cameraProvider = withContext(Dispatchers.IO) {
+                cameraProviderFuture.get()
+            }
+
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = previewView.surfaceProvider
+            }
+
+            val capture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .build()
+
+            imageCapture = capture
+
+            cameraProvider.unbindAll()
+            val camera = cameraProvider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                capture
+            )
+            // Handle flash mode
+            camera.cameraControl.enableTorch(flashOn)
+
+        } catch (e: Exception) {
+            cameraError = "Failed to start camera: ${e.message}"
+        }
+    }
 
     if (!hasCameraPermission) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Camera permission required")
-            Button(onClick = onCancel) {
-                Text("Go Back")
-            }
-        }
+        PermissionDeniedView(onCancel = onCancel)
         return
     }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    var flashOn by remember { mutableStateOf(false) }
-
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
-    var camera: Camera? by remember { mutableStateOf(null) }
-    var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
-
-    val previewView = remember { PreviewView(context) }
-
-    LaunchedEffect(Unit) {
-        cameraProvider = try {
-            cameraProviderFuture.get()
-        } catch (e: Exception) {
-            Log.e("CameraScreen", "Failed to get camera provider", e)
-            null
-        }
+    if (cameraError != null) {
+        ErrorView(error = cameraError, onCancel = onCancel)
+        return
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -117,20 +151,27 @@ fun CameraScreen(
 
             IconButton(
                 onClick = {
-                    val photoFile = createTempImageFile(context)
+                    val captureInstance = imageCapture
+                    if (captureInstance == null) {
+                        cameraError = "Camera not ready"
+                        return@IconButton
+                    }
+                    val photoFile = createImageFile(context)
                     val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
-                    imageCapture?.takePicture(
+                    captureInstance.takePicture(
                         outputOptions,
                         ContextCompat.getMainExecutor(context),
                         object : ImageCapture.OnImageSavedCallback {
-                            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                                val photoPath = photoFile.absolutePath
-                                onPhotoTaken(photoPath)
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                scope.launch {
+                                    savePhoto(plantId, photoFile.absolutePath)
+                                    onPhotoTaken(photoFile.absolutePath)
+                                }
                             }
 
                             override fun onError(exception: ImageCaptureException) {
-                                // Handle error
+                                cameraError = "Failed to take photo: ${exception.message}"
                             }
                         }
                     )
@@ -147,41 +188,55 @@ fun CameraScreen(
             }
         }
     }
-
-    LaunchedEffect(cameraProvider, flashOn) {
-        val provider = cameraProvider ?: return@LaunchedEffect
-
-        val preview = Preview.Builder().build().also {
-            it.surfaceProvider = previewView.surfaceProvider
-        }
-
-        imageCapture = ImageCapture.Builder().build()
-
-        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-        try {
-            provider.unbindAll()
-            camera = provider.bindToLifecycle(
-                lifecycleOwner,
-                cameraSelector,
-                preview,
-                imageCapture
-            )
-
-            camera?.cameraControl?.enableTorch(flashOn)
-        } catch (e: Exception) {
-            // Handle error
-        }
-    }
 }
 
-private fun createTempImageFile(context: Context): File {
-    // Create an image file name
+
+private fun createImageFile(context: Context): File {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = context.externalCacheDir ?: context.cacheDir
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
     return File.createTempFile(
         "JPEG_${timeStamp}_",
         ".jpg",
         storageDir
-    )
+    ).also { it.createNewFile() }
+}
+
+@Composable
+private fun PermissionDeniedView(onCancel: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Camera permission required",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onCancel) {
+            Text("Go Back")
+        }
+    }
+}
+
+@Composable
+private fun ErrorView(error: String?, onCancel: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = error ?: "Unknown error",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onCancel) {
+            Text("Go Back")
+        }
+    }
 }
