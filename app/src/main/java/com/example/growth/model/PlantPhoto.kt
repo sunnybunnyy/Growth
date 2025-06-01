@@ -6,10 +6,10 @@ import androidx.room.PrimaryKey
 @Entity
 data class PlantPhoto(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val plantId: Int,
-    val dateTaken: Long = System.currentTimeMillis(),
-    val photoPath: String,
-    val notes: String? = null
+    val plantId: Int, // Links the photo to a specific Plant (matches the Plant's id), required
+    val dateTaken: Long = System.currentTimeMillis(), // When the photo was taken, default to now
+    val photoPath: String, // File path to the actual photo
+    val notes: String? = null // Notes about the photo, optional
 )
 
 
