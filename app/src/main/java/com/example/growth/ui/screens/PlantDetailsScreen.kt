@@ -1,6 +1,7 @@
 package com.example.growth.ui.screens
 
 import android.util.Log
+// UI components
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -48,59 +48,64 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+// For navigating between screens
 import androidx.navigation.NavController
-import coil.compose.rememberImagePainter
 import com.example.growth.R
+// Database access
 import com.example.growth.database.AppDatabase
-import com.example.growth.model.Plant
+// PlantPhoto table
 import com.example.growth.model.PlantPhoto
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.runtime.rememberCoroutineScope
+// For loading images
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 
+// Allows using Material 3 features
 @OptIn(ExperimentalMaterial3Api::class)
+// Marks this as a Compose UI function
 @Composable
 fun PlantDetailsScreen(
-    plantId: Int,
-    navController: NavController,
-    database: AppDatabase,
-    hasCameraPermission: Boolean,
-    onRequestCameraPermission: () -> Unit
+    plantId: Int, // ID of the plant to show
+    navController: NavController, // For navigation between screens
+    database: AppDatabase, // Provides access to app data
+    hasCameraPermission: Boolean, // Whether camera permission is granted
+    onRequestCameraPermission: () -> Unit // Function to request camera permission
 ) {
-    val context = LocalContext.current
-    val plantDao = database.plantDao()
-    val scope = rememberCoroutineScope()
+    val plantDao = database.plantDao() // Get access to plant data operations
+    val scope = rememberCoroutineScope() // Create a coroutine scope for async operations
 
-    // Fetch plant details
+    // Fetch plant details and photos from database. collectAsState makes these observable.
+    // Auto-updates when data changes
     val plant by plantDao.getPlantById(plantId).collectAsState(initial = null)
-
-    // Fetch plant photos
+    // Fetch plant photos, auto-updates when new photos added
     val photos by plantDao.getPhotosForPlant(plantId).collectAsState(initial = emptyList())
-
-    // State for edit dialog
+    // Tracks whether edit dialog should be shown
     var showEditDialog by remember { mutableStateOf(false) }
 
+    // Creates the screen structure
+    //  Top bar with back button and title
+    //  Edit button in top-right
+    //  Floating Add Photo button
+    //  Main content area
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(plant?.name ?: stringResource(R.string.plant_details)) },
-                navigationIcon = {
+                navigationIcon = { // Back button
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                actions = {
+                actions = { // Edit button
                     IconButton(onClick = { showEditDialog = true }) {
                         Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                     }
                 }
             )
         },
-        floatingActionButton = {
+        floatingActionButton = { // Add Photo button
             Button(
                 onClick = {
                     Log.d("AddPhoto", "Add photo button clicked for plant ID: $plantId")
@@ -127,8 +132,11 @@ fun PlantDetailsScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            // Vertical scrollable column layout
+            // Checks if plant exists before displaying
             plant?.let { currentPlant ->
-                // Main plant photo
+                // Display plant info if found
+                // Shows the main plant image with rounded corners
                 Image(
                     painter = rememberAsyncImagePainter(currentPlant.photoPath),
                     contentDescription = stringResource(R.string.plant_image),
@@ -141,8 +149,9 @@ fun PlantDetailsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Plant information
+                // Plant information section, displays plant name, species in a column
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    // Name and species
                     Text(
                         text = currentPlant.name,
                         style = MaterialTheme.typography.headlineMedium,
@@ -159,7 +168,7 @@ fun PlantDetailsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Growth stats
+                    // Growth stats row, shows days growing and photo count side-by-side
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -176,7 +185,7 @@ fun PlantDetailsScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Time-lapse section
+                    // Shows time-lapse button only if there are 2+ photos
                     if (photos.size >= 2) {
                         Button(
                             onClick = { navController.navigate("timeLapse/$plantId") },
@@ -187,7 +196,7 @@ fun PlantDetailsScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    // Photo timeline
+                    // Shows horizontal scrollable list of plant photos
                     Text(
                         text = stringResource(R.string.growth_timeline),
                         style = MaterialTheme.typography.titleLarge,
@@ -215,7 +224,7 @@ fun PlantDetailsScreen(
                     }
                 }
             } ?: run {
-                // Plant not found
+                // Plant not found, show not found message
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -226,7 +235,7 @@ fun PlantDetailsScreen(
         }
     }
 
-    // Edit Plant Dialog
+    // Shows edit dialog when requested, updates plant info when saved
     if (showEditDialog && plant != null) {
         EditPlantDialog(
             plant = plant!!,
@@ -247,6 +256,7 @@ fun PlantDetailsScreen(
 }
 
 @Composable
+// Displays a statistic with label
 private fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
@@ -263,6 +273,7 @@ private fun StatItem(label: String, value: String) {
 }
 
 @Composable
+// Show a photo with date in timeline
 private fun PhotoTimelineItem(photo: PlantPhoto) {
     Column(
         modifier = Modifier
@@ -286,10 +297,12 @@ private fun PhotoTimelineItem(photo: PlantPhoto) {
     }
 }
 
+// Helper function for date calculations
 private fun calculateDaysSince(startDate: Long): Long {
     return (System.currentTimeMillis() - startDate) / (1000 * 60 * 60 * 24)
 }
 
+// Helper function for date formatting
 private fun formatDate(timestamp: Long): String {
     val date = Date(timestamp)
     val format = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
